@@ -19,12 +19,9 @@ jobs:
       - name: Instalar dependências de build
         run: |
           apk add --no-cache \
-            git git-lfs python3 make g++ clang tar curl bash \
+            git git-lfs python3 make g++ tar curl bash \
             alpine-sdk sudo shadow \
-            libstdc++ libc6-compat \
-            libx11-dev libxkbfile-dev \
-            libsecret-dev krb5-dev \
-            pkgconf \
+            libstdc++ libc6-compat krb5-dev \
             quilt rsync unzip jq
 
       - name: Checkout do repositório
@@ -38,12 +35,8 @@ jobs:
           quilt push -a
 
       - name: Instalar dependências do projeto
-        env:
-          CC: gcc
-          CXX: g++
-          CFLAGS: "-std=c17"
-          CXXFLAGS: "-std=c++20 -Dnullptr_t=std::nullptr_t -include cstddef"
-        run: npm ci
+        run: |
+          npm ci
 
       - name: Build do code-server
         run: |
