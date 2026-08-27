@@ -39,9 +39,8 @@ jobs:
 
       - name: Instalar dependências do projeto
         env:
-          CC: clang
-          CXX: clang++
-          CXXFLAGS: "-std=c++20"
+          CXXFLAGS: "-std=c++20 -Dnullptr_t=std::nullptr_t"
+          CXX: g++
         run: npm ci
 
       - name: Build do code-server
