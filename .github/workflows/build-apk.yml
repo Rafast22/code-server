@@ -1,0 +1,76 @@
+name: Build code-server para Alpine (musl) e publicar .apk
+
+on:
+  push:
+    tags:
+      - "v*"          # dispare criando uma tag, ex: v4.90.0-alpine1
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: node:20-alpine   # imagem já linkada contra musl
+    steps:
+      - name: Instalar dependências de build
+        run: |
+          apk add --no-cache \
+            git python3 make g++ tar curl bash \
+            alpine-sdk sudo shadow
+
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Instalar dependências do projeto
+        run: |
+          corepack enable
+          yarn install --frozen-lockfile
+
+      - name: Build do code-server
+        run: |
+          yarn build
+          yarn build:vscode
+          yarn release
+
+      - name: Empacotar release em tar
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mkdir -p alpine
+          cp -r release alpine/release
+
+      - name: Preparar chaves do abuild
+        run: |
+          adduser -D builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          mkdir -p /home/builder/.abuild
+          echo "${{ secrets.ABUILD_PRIVKEY }}" | base64 -d > /home/builder/.abuild/builder.rsa
+          echo "${{ secrets.ABUILD_PUBKEY }}"  | base64 -d > /home/builder/.abuild/builder.rsa.pub
+          echo "PACKAGER_PRIVKEY=/home/builder/.abuild/builder.rsa" > /home/builder/.abuild/abuild.conf
+          cp /home/builder/.abuild/builder.rsa.pub /etc/apk/keys/
+          chown -R builder:builder /home/builder/.abuild alpine
+
+      - name: Gerar APKBUILD com a versão atual
+        run: |
+          sed "s/__VERSION__/${VERSION}/" alpine/APKBUILD.template > alpine/APKBUILD || \
+          cp alpine/APKBUILD.template alpine/APKBUILD
+
+      - name: Rodar abuild
+        run: |
+          su builder -c "cd $(pwd)/alpine && abuild -r"
+
+      - name: Localizar .apk gerado
+        run: |
+          find /home/builder/packages -name "*.apk" -exec cp {} . \;
+          ls -la *.apk
+
+      - name: Publicar como GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.apk"
+          tag_name: ${{ github.ref_name }}
