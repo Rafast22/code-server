@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: node:22-alpine   # Node 24 + musl
+      image: node:24-alpine   # Node 24 + musl
 
     steps:
       - name: Instalar dependências de build
@@ -39,12 +39,13 @@ jobs:
 
       - name: Instalar dependências do projeto
         env:
-          FORCE_NODE_VERSION: "22"
+          CC: gcc
+          CXX: g++
+          CFLAGS: "-std=c17"
+          CXXFLAGS: "-std=c++20 -Dnullptr_t=std::nullptr_t -include cstddef"
         run: npm ci
 
       - name: Build do code-server
-        env:
-          FORCE_NODE_VERSION: "22"
         run: |
           npm run build
           VERSION=$(node -p "require('./package.json').version")
