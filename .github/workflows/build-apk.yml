@@ -21,7 +21,10 @@ jobs:
           apk add --no-cache \
             git git-lfs python3 make g++ tar curl bash \
             alpine-sdk sudo shadow \
-            libstdc++ libc6-compat krb5-dev \
+            libstdc++ libc6-compat \
+            libx11-dev libxkbfile-dev \
+            libsecret-dev krb5-dev \
+            pkgconf \
             quilt rsync unzip jq
 
       - name: Checkout do repositório
