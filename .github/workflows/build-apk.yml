@@ -13,10 +13,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: node:24-alpine   # Node 24 + musl
+      image: node:24-alpine
+
+    # Injeta as flags C/C++ globalmente para o node-gyp contornar o GCC 15
     env:
-        CFLAGS: "-include cstddef -Dnullptr_t=std::nullptr_t"
-        CXXFLAGS: "-include cstddef -Dnullptr_t=std::nullptr_t"
+      CFLAGS: "-include cstddef -Dnullptr_t=std::nullptr_t"
+      CXXFLAGS: "-include cstddef -Dnullptr_t=std::nullptr_t"
+
     steps:
       - name: Instalar dependências de build
         run: |
@@ -27,12 +30,11 @@ jobs:
             quilt rsync unzip jq \
             pkgconf libx11-dev libxkbfile-dev libsecret-dev
 
-
       - name: Checkout do repositório
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive   # importante para o vscode
+          submodules: recursive
 
       - name: Aplicar patches do VS Code
         run: |
