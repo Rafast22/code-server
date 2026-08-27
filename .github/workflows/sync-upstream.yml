@@ -2,8 +2,8 @@ name: Sync fork with upstream code-server
 
 on:
   schedule:
-    - cron: "0 3 * * *"   # todo dia às 03:00 UTC — ajuste como quiser
-  workflow_dispatch: {}    # permite rodar manualmente pela aba Actions
+    - cron: "0 3 * * *" 
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -16,8 +16,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Precisa de um token com permissão de push. O GITHUB_TOKEN padrão
-          # funciona se a branch não tiver proteção que bloqueie o Actions bot.
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configurar git
@@ -42,3 +40,20 @@ jobs:
 
       - name: Push para o fork
         run: git push origin HEAD
+
+      - name: Criar tag de release automaticamente
+        env:
+          SUFFIX: "-alpine1"   # troque para -alpine2, -alpine3... se só mudar o empacotamento
+        run: |
+          VERSION=$(jq -r .version package.json)
+          TAG="v${VERSION}${SUFFIX}"
+          echo "Versão detectada no code-server: $VERSION"
+          echo "Tag alvo: $TAG"
+
+          if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag $TAG já existe no fork — nada a fazer, build não será disparado de novo."
+          else
+            echo "Tag $TAG não existe ainda. Criando e enviando..."
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
