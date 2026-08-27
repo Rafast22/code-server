@@ -1,0 +1,23 @@
+# Maintainer: Seu Nome <tresrafael22@protonmail.com>
+pkgname=code-server
+pkgver=__VERSION__
+pkgrel=0
+pkgdesc="VS Code rodando no navegador, empacotado para Alpine"
+url="https://github.com/coder/code-server"
+arch="x86_64 aarch64"
+license="MIT"
+depends="nodejs libstdc++"
+options="!check" 
+source=""
+
+build() {
+	return 0
+}
+
+package() {
+	mkdir -p "$pkgdir"/usr/lib/code-server
+	cp -r "$startdir"/release/* "$pkgdir"/usr/lib/code-server/
+
+	mkdir -p "$pkgdir"/usr/bin
+	ln -sf /usr/lib/code-server/bin/code-server "$pkgdir"/usr/bin/code-server
+}
