@@ -13,18 +13,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: node:24-alpine
-
-    # Define o Clang como compilador C/C++ padrão
-    env:
-      CC: clang
-      CXX: clang++
+      # Fixa no Alpine 3.21 (com toolchain C++ compatível)
+      image: node:24-alpine3.21
 
     steps:
       - name: Instalar dependências de build
         run: |
           apk add --no-cache \
-            git git-lfs python3 make clang clang-dev g++ tar curl bash \
+            git git-lfs python3 make g++ tar curl bash \
             alpine-sdk sudo shadow \
             libstdc++ libc6-compat krb5-dev \
             quilt rsync unzip jq \
