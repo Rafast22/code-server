@@ -1,0 +1,44 @@
+name: Sync fork with upstream code-server
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # todo dia às 03:00 UTC — ajuste como quiser
+  workflow_dispatch: {}    # permite rodar manualmente pela aba Actions
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Precisa de um token com permissão de push. O GITHUB_TOKEN padrão
+          # funciona se a branch não tiver proteção que bloqueie o Actions bot.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Adicionar remote upstream
+        run: |
+          git remote add upstream https://github.com/coder/code-server.git || true
+          git fetch upstream
+
+      - name: Mesclar upstream/main na branch atual
+        run: |
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          echo "Branch atual: $BRANCH"
+          git merge upstream/main --no-edit || {
+            echo "Conflito no merge automático. Abortando para revisão manual.";
+            git merge --abort;
+            exit 1;
+          }
+
+      - name: Push para o fork
+        run: git push origin HEAD
