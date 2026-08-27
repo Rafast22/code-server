@@ -3,7 +3,7 @@ name: Build code-server para Alpine (musl) e publicar .apk
 on:
   push:
     tags:
-      - "v*"          # dispare criando uma tag, ex: v4.90.0-alpine1
+      - "v*"
   workflow_dispatch: {}
 
 permissions:
@@ -13,31 +13,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: node:20-alpine   # imagem já linkada contra musl
+      image: node:24-alpine   # Node 24 + musl
+
     steps:
       - name: Instalar dependências de build
         run: |
           apk add --no-cache \
-            git python3 make g++ tar curl bash \
-            alpine-sdk sudo shadow
+            git git-lfs python3 make g++ tar curl bash \
+            alpine-sdk sudo shadow \
+            libstdc++ libc6-compat krb5-dev \
+            quilt rsync unzip jq
 
       - name: Checkout do repositório
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive   # importante para o vscode
+
+      - name: Aplicar patches do VS Code
+        run: |
+          quilt push -a
 
       - name: Instalar dependências do projeto
         run: |
-          corepack enable
-          yarn install --frozen-lockfile
+          npm ci
 
       - name: Build do code-server
         run: |
-          yarn build
-          yarn build:vscode
-          yarn release
+          npm run build
+          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$VERSION npm run build:vscode
+          KEEP_MODULES=1 npm run release
 
-      - name: Empacotar release em tar
+      - name: Empacotar release
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
