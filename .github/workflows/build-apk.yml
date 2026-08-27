@@ -14,7 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: node:24-alpine   # Node 24 + musl
-
+    env:
+        CFLAGS: "-include cstddef -Dnullptr_t=std::nullptr_t"
+        CXXFLAGS: "-include cstddef -Dnullptr_t=std::nullptr_t"
     steps:
       - name: Instalar dependências de build
         run: |
