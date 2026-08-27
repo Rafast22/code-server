@@ -22,7 +22,9 @@ jobs:
             git git-lfs python3 make g++ tar curl bash \
             alpine-sdk sudo shadow \
             libstdc++ libc6-compat krb5-dev \
-            quilt rsync unzip jq
+            quilt rsync unzip jq \
+            pkgconf libx11-dev libxkbfile-dev libsecret-dev
+
 
       - name: Checkout do repositório
         uses: actions/checkout@v4
