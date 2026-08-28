@@ -17,6 +17,8 @@ jobs:
 
     env:
       CXXFLAGS: "-include /tmp/v8_compat.h"
+      # Ajusta o target do VS Code para o padrão reconhecido pelo Gulp
+      VSCODE_TARGET: "linux-alpine"
 
     steps:
       - name: Criar header de compatibilidade C++ (GCC 15)
