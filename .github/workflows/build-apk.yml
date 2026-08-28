@@ -13,20 +13,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: node:24-alpine3.21
+      # Node 24.20+ (atende a exigência >= 24.18.0 do VS Code)
+      image: node:24-alpine
+
+    env:
+      # Injeta a compatibilidade do nullptr_t no GCC 15 globalmente
+      CXXFLAGS: "-include /tmp/v8_compat.h"
 
     steps:
-      - name: Instalar dependências de build
-        run: |
-          apk add --no-cache \
-            git git-lfs python3 make g++ tar curl bash \
-            alpine-sdk sudo shadow \
-            libstdc++ libc6-compat krb5-dev \
-            quilt rsync unzip jq \
-            pkgconf libx11-dev libxkbfile-dev libsecret-dev \
-            cmake ninja linux-headers
-
-      - name: Configurar compatibilidade C++ do V8
+      - name: Criar header de compatibilidade C++ (GCC 15)
         run: |
           cat << 'EOF' > /tmp/v8_compat.h
           #pragma once
@@ -36,8 +31,15 @@ jobs:
           #endif
           EOF
 
-          echo "CXXFLAGS=-include /tmp/v8_compat.h" >> "$GITHUB_ENV"
-          echo "npm_config_cxxflags=-include /tmp/v8_compat.h" >> "$GITHUB_ENV"
+      - name: Instalar dependências de build
+        run: |
+          apk add --no-cache \
+            git git-lfs python3 make g++ tar curl bash \
+            alpine-sdk sudo shadow \
+            libstdc++ libc6-compat krb5-dev \
+            quilt rsync unzip jq \
+            pkgconf libx11-dev libxkbfile-dev libsecret-dev \
+            cmake ninja linux-headers
 
       - name: Checkout do repositório
         uses: actions/checkout@v4
