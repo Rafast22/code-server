@@ -40,19 +40,6 @@ jobs:
             pkgconf libx11-dev libxkbfile-dev libsecret-dev \
             cmake ninja linux-headers
 
-      - name: Criar shim do Docker para o VS Code
-        run: |
-          cat << 'EOF' > /usr/local/bin/docker
-          #!/bin/sh
-          if echo "$*" | grep -q "cat \`which node\`"; then
-            cat "$(which node)"
-            exit 0
-          fi
-          cat "$(which node)"
-          exit 0
-          EOF
-          chmod +x /usr/local/bin/docker
-
       - name: Checkout do repositório
         uses: actions/checkout@v4
         with:
@@ -67,6 +54,24 @@ jobs:
         run: |
           quilt push -a
 
+      - name: Patch extractAlpinefromDocker no VS Code (evita ENOBUFS)
+        run: |
+          node -e "
+          const fs = require('fs');
+          const file = 'lib/vscode/build/gulpfile.reh.ts';
+          if (fs.existsSync(file)) {
+            let content = fs.readFileSync(file, 'utf8');
+            content = content.replace(
+              /function extractAlpinefromDocker[\s\S]*?\n\}/m,
+              'function extractAlpinefromDocker(...args: any[]) {\n\treturn fs.readFileSync(process.execPath);\n}'
+            );
+            fs.writeFileSync(file, content);
+            console.log('Patch aplicado com sucesso em ' + file);
+          } else {
+            console.log('Arquivo não encontrado: ' + file);
+          }
+          "
+
       - name: Instalar dependências do projeto
         run: |
           npm ci
@@ -74,44 +79,3 @@ jobs:
       - name: Build do code-server
         run: |
           npm run build
-          VERSION=$(node -p "require('./package.json').version")
-          VERSION=$VERSION npm run build:vscode
-          KEEP_MODULES=1 npm run release
-
-      - name: Empacotar release
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          mkdir -p alpine
-          cp -r release alpine/release
-
-      - name: Preparar chaves do abuild
-        run: |
-          adduser -D builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          mkdir -p /home/builder/.abuild
-          echo "${{ secrets.ABUILD_PRIVKEY }}" | base64 -d > /home/builder/.abuild/builder.rsa
-          echo "${{ secrets.ABUILD_PUBKEY }}"  | base64 -d > /home/builder/.abuild/builder.rsa.pub
-          echo "PACKAGER_PRIVKEY=/home/builder/.abuild/builder.rsa" > /home/builder/.abuild/abuild.conf
-          cp /home/builder/.abuild/builder.rsa.pub /etc/apk/keys/
-          chown -R builder:builder /home/builder/.abuild alpine
-
-      - name: Gerar APKBUILD com a versão atual
-        run: |
-          sed "s/__VERSION__/${VERSION}/" alpine/APKBUILD.template > alpine/APKBUILD || \
-          cp alpine/APKBUILD.template alpine/APKBUILD
-
-      - name: Rodar abuild
-        run: |
-          su builder -c "cd $(pwd)/alpine && abuild -r"
-
-      - name: Localizar .apk gerado
-        run: |
-          find /home/builder/packages -name "*.apk" -exec cp {} . \;
-          ls -la *.apk
-
-      - name: Publicar como GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: "*.apk"
-          tag_name: ${{ github.ref_name }}
