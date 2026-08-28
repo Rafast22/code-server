@@ -17,7 +17,6 @@ jobs:
 
     env:
       CXXFLAGS: "-include /tmp/v8_compat.h"
-      # Ajusta o target do VS Code para o padrão reconhecido pelo Gulp
       VSCODE_TARGET: "linux-alpine"
 
     steps:
@@ -40,6 +39,19 @@ jobs:
             quilt rsync unzip jq \
             pkgconf libx11-dev libxkbfile-dev libsecret-dev \
             cmake ninja linux-headers
+
+      - name: Criar shim do Docker para o VS Code
+        run: |
+          cat << 'EOF' > /usr/local/bin/docker
+          #!/bin/sh
+          if echo "$*" | grep -q "cat \`which node\`"; then
+            cat "$(which node)"
+            exit 0
+          fi
+          cat "$(which node)"
+          exit 0
+          EOF
+          chmod +x /usr/local/bin/docker
 
       - name: Checkout do repositório
         uses: actions/checkout@v4
