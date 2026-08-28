@@ -126,12 +126,13 @@ jobs:
         run: |
           sed "s/__VERSION__/${VERSION}/g" alpine/APKBUILD.template > alpine/APKBUILD
 
-          # Garante que options inclua !strip para não tentar processar binários de outros sistemas
+          # Adiciona !strip e !tracedeps para evitar varredura em binários de outros sistemas
           if grep -q "options=" alpine/APKBUILD; then
-            sed -i -E 's/options="([^"]*)"/options="\1 !strip"/' alpine/APKBUILD
+            sed -i -E 's/options="([^"]*)"/options="\1 !strip !tracedeps"/' alpine/APKBUILD
             sed -i 's/!strip !strip/!strip/g' alpine/APKBUILD
+            sed -i 's/!tracedeps !tracedeps/!tracedeps/g' alpine/APKBUILD
           else
-            echo 'options="!check !strip"' >> alpine/APKBUILD
+            echo 'options="!check !strip !tracedeps"' >> alpine/APKBUILD
           fi
 
           chown -R builder:abuild alpine
