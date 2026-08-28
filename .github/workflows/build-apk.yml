@@ -4,7 +4,12 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versão do code-server (ex: 4.96.4)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -50,11 +55,26 @@ jobs:
         run: |
           git config --global --add safe.directory '*'
 
+      - name: Definir Versão do Build
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "4.96.0")
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "Versão definida para o build: ${VERSION}"
+
       - name: Aplicar patches do VS Code
         run: |
           quilt push -a
 
-      - name: Patch extractAlpinefromDocker no VS Code (evita ENOBUFS)
+      - name: Patch extractAlpinefromDocker no VS Code
         run: |
           node -e "
           const fs = require('fs');
@@ -67,8 +87,6 @@ jobs:
             );
             fs.writeFileSync(file, content);
             console.log('Patch aplicado com sucesso em ' + file);
-          } else {
-            console.log('Arquivo não encontrado: ' + file);
           }
           "
 
@@ -79,3 +97,52 @@ jobs:
       - name: Build do code-server
         run: |
           npm run build
+          VERSION=$VERSION npm run build:vscode
+          KEEP_MODULES=1 npm run release
+
+      - name: Empacotar release
+        run: |
+          mkdir -p alpine
+          cp -r release alpine/release
+
+      - name: Preparar chaves do abuild
+        run: |
+          adduser -D builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          mkdir -p /home/builder/.abuild
+          echo "${{ secrets.ABUILD_PRIVKEY }}" | base64 -d > /home/builder/.abuild/builder.rsa
+          echo "${{ secrets.ABUILD_PUBKEY }}"  | base64 -d > /home/builder/.abuild/builder.rsa.pub
+          echo "PACKAGER_PRIVKEY=/home/builder/.abuild/builder.rsa" > /home/builder/.abuild/abuild.conf
+          cp /home/builder/.abuild/builder.rsa.pub /etc/apk/keys/
+          chown -R builder:builder /home/builder/.abuild alpine
+
+      - name: Gerar APKBUILD com a versão atual
+        run: |
+          sed "s/__VERSION__/${VERSION}/g" alpine/APKBUILD.template > alpine/APKBUILD || \
+          cp alpine/APKBUILD.template alpine/APKBUILD
+
+      - name: Rodar abuild
+        run: |
+          su builder -c "cd $(pwd)/alpine && abuild -r -F"
+
+      - name: Localizar .apk gerado
+        run: |
+          find /home/builder/packages -name "*.apk" -exec cp {} . \;
+          ls -la *.apk
+
+      - name: Disponibilizar .apk como Artifact (Download Imediato)
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-server-alpine-apk
+          path: "*.apk"
+          if-no-files-found: error
+
+      - name: Publicar GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.version != ''
+        with:
+          files: "*.apk"
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          name: Release ${{ steps.version.outputs.release_tag }}
+          draft: false
+          prerelease: false
