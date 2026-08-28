@@ -81,12 +81,13 @@ jobs:
           const file = 'lib/vscode/build/gulpfile.reh.ts';
           if (fs.existsSync(file)) {
             let content = fs.readFileSync(file, 'utf8');
+            // Substitui a chamada do cp.execSync mantendo o retorno do Stream do Gulp intacto
             content = content.replace(
-              /(function\s+extractAlpinefromDocker[^{]*\{)/,
-              '\$1\n\treturn fs.readFileSync(process.execPath);'
+              /const contents = cp\.execSync\([^;]+\);/g,
+              'const contents = fs.readFileSync(process.execPath);'
             );
             fs.writeFileSync(file, content);
-            console.log('Patch aplicado com sucesso em ' + file);
+            console.log('Patch de leitura de buffer aplicado com sucesso em ' + file);
           } else {
             console.log('Arquivo não encontrado: ' + file);
           }
