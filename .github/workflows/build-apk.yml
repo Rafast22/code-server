@@ -70,7 +70,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-          echo "Versão numérica definida para o abuild: ${VERSION}"
+          echo "Versão definida: ${VERSION}"
 
       - name: Aplicar patches do VS Code
         run: |
@@ -123,11 +123,7 @@ jobs:
 
       - name: Gerar APKBUILD com a versão atual
         run: |
-          sed -E "s/v?__VERSION__/${VERSION}/g" alpine/APKBUILD.template > alpine/APKBUILD || \
-          cp alpine/APKBUILD.template alpine/APKBUILD
-
-          sed -i -E "s/^pkgver=[\"']?v?([0-9])/pkgver=\"\1/" alpine/APKBUILD
-          sed -i -E "s/^pkgver=v?([0-9])/pkgver=\1/" alpine/APKBUILD
+          sed "s/__VERSION__/${VERSION}/g" alpine/APKBUILD.template > alpine/APKBUILD
           chown -R builder:abuild alpine
 
       - name: Rodar abuild
