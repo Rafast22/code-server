@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Versão do code-server (ex: 4.96.4)'
+        description: 'Versão do code-server (ex: 4.135.0)'
         required: false
         default: ''
 
@@ -59,16 +59,18 @@ jobs:
         id: version
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+            RAW_VERSION="${{ github.event.inputs.version }}"
           elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
+            RAW_VERSION="${GITHUB_REF_NAME}"
           else
-            VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "4.96.0")
+            RAW_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "4.135.0")
           fi
+          VERSION=$(echo "$RAW_VERSION" | sed 's/^[vV]//')
+
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-          echo "Versão definida para o build: ${VERSION}"
+          echo "Versão numérica definida para o abuild: ${VERSION}"
 
       - name: Aplicar patches do VS Code
         run: |
@@ -81,7 +83,6 @@ jobs:
           const file = 'lib/vscode/build/gulpfile.reh.ts';
           if (fs.existsSync(file)) {
             let content = fs.readFileSync(file, 'utf8');
-            // Substitui a chamada do cp.execSync mantendo o retorno do Stream do Gulp intacto
             content = content.replace(
               /const contents = cp\.execSync\([^;]+\);/g,
               'const contents = fs.readFileSync(process.execPath);'
@@ -110,19 +111,24 @@ jobs:
 
       - name: Preparar chaves do abuild
         run: |
-          adduser -D builder
+          adduser -D -G abuild builder || addgroup builder abuild
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          mkdir -p /home/builder/.abuild
+          mkdir -p /home/builder/.abuild /var/cache/distfiles
+          chmod a+w /var/cache/distfiles
           echo "${{ secrets.ABUILD_PRIVKEY }}" | base64 -d > /home/builder/.abuild/builder.rsa
           echo "${{ secrets.ABUILD_PUBKEY }}"  | base64 -d > /home/builder/.abuild/builder.rsa.pub
           echo "PACKAGER_PRIVKEY=/home/builder/.abuild/builder.rsa" > /home/builder/.abuild/abuild.conf
           cp /home/builder/.abuild/builder.rsa.pub /etc/apk/keys/
-          chown -R builder:builder /home/builder/.abuild alpine
+          chown -R builder:abuild /home/builder alpine
 
       - name: Gerar APKBUILD com a versão atual
         run: |
-          sed "s/__VERSION__/${VERSION}/g" alpine/APKBUILD.template > alpine/APKBUILD || \
+          sed -E "s/v?__VERSION__/${VERSION}/g" alpine/APKBUILD.template > alpine/APKBUILD || \
           cp alpine/APKBUILD.template alpine/APKBUILD
+
+          sed -i -E "s/^pkgver=[\"']?v?([0-9])/pkgver=\"\1/" alpine/APKBUILD
+          sed -i -E "s/^pkgver=v?([0-9])/pkgver=\1/" alpine/APKBUILD
+          chown -R builder:abuild alpine
 
       - name: Rodar abuild
         run: |
