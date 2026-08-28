@@ -13,7 +13,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      # Fixa no Alpine 3.21 (com toolchain C++ compatível)
       image: node:24-alpine3.21
 
     steps:
@@ -24,7 +23,8 @@ jobs:
             alpine-sdk sudo shadow \
             libstdc++ libc6-compat krb5-dev \
             quilt rsync unzip jq \
-            pkgconf libx11-dev libxkbfile-dev libsecret-dev
+            pkgconf libx11-dev libxkbfile-dev libsecret-dev \
+            cmake ninja linux-headers
 
       - name: Checkout do repositório
         uses: actions/checkout@v4
