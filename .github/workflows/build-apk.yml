@@ -26,6 +26,19 @@ jobs:
             pkgconf libx11-dev libxkbfile-dev libsecret-dev \
             cmake ninja linux-headers
 
+      - name: Configurar compatibilidade C++ do V8
+        run: |
+          cat << 'EOF' > /tmp/v8_compat.h
+          #pragma once
+          #ifdef __cplusplus
+          #include <cstddef>
+          using std::nullptr_t;
+          #endif
+          EOF
+
+          echo "CXXFLAGS=-include /tmp/v8_compat.h" >> "$GITHUB_ENV"
+          echo "npm_config_cxxflags=-include /tmp/v8_compat.h" >> "$GITHUB_ENV"
+
       - name: Checkout do repositório
         uses: actions/checkout@v4
         with:
