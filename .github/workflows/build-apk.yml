@@ -13,11 +13,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      # Node 24.20+ (atende a exigência >= 24.18.0 do VS Code)
       image: node:24-alpine
 
     env:
-      # Injeta a compatibilidade do nullptr_t no GCC 15 globalmente
       CXXFLAGS: "-include /tmp/v8_compat.h"
 
     steps:
@@ -46,6 +44,10 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+
+      - name: Configurar Git Safe Directory
+        run: |
+          git config --global --add safe.directory '*'
 
       - name: Aplicar patches do VS Code
         run: |
