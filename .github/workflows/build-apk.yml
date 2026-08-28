@@ -74,16 +74,16 @@ jobs:
         run: |
           quilt push -a
 
-      - name: Patch extractAlpinefromDocker no VS Code (sem quebra de sintaxe)
+      - name: Patch extractAlpinefromDocker no VS Code
         run: |
           node -e "
           const fs = require('fs');
           const file = 'lib/vscode/build/gulpfile.reh.ts';
           if (fs.existsSync(file)) {
             let content = fs.readFileSync(file, 'utf8');
-            content = content.replaceAll(
-              'extractAlpinefromDocker(',
-              '(() => fs.readFileSync(process.execPath))('
+            content = content.replace(
+              /(function\s+extractAlpinefromDocker[^{]*\{)/,
+              '\$1\n\treturn fs.readFileSync(process.execPath);'
             );
             fs.writeFileSync(file, content);
             console.log('Patch aplicado com sucesso em ' + file);
